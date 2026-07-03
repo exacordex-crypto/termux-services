@@ -1,0 +1,26 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate scripts
+        run: make check
+      - name: Stage install tree
+        run: make install DESTDIR="$PWD/stage"
+      - name: Build release tarball
+        run: |
+          tar -C stage -czf termux-services.tar.gz .
+          sha256sum termux-services.tar.gz > termux-services.tar.gz.sha256
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: termux-services-package
+          path: |
+            termux-services.tar.gz
+            termux-services.tar.gz.sha256
