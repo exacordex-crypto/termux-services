@@ -1,22 +1,33 @@
+PREFIX ?= /data/data/com.termux/files/usr
+DESTDIR ?=
+INSTALL ?= install
+
+BINDIR = $(DESTDIR)$(PREFIX)/bin
+PROFILEDIR = $(DESTDIR)$(PREFIX)/etc/profile.d
+FISHDIR = $(DESTDIR)$(PREFIX)/etc/fish/conf.d
+SHAREDIR = $(DESTDIR)$(PREFIX)/share/termux-services
+
+SCRIPTS = sv-enable sv-disable service-daemon
+
 termux-services:
 
 install: termux-services
-	install sv-enable $(DESTDIR)$(PREFIX)/bin/
-	install sv-disable $(DESTDIR)$(PREFIX)/bin/
-	install service-daemon $(DESTDIR)$(PREFIX)/bin/
-	mkdir -p $(DESTDIR)$(PREFIX)/etc/profile.d/
-	install start-services.sh $(DESTDIR)$(PREFIX)/etc/profile.d
-	mkdir -p $(DESTDIR)$(PREFIX)/etc/fish/conf.d
-	install start-services.fish $(DESTDIR)$(PREFIX)/etc/fish/conf.d
-	mkdir -p $(DESTDIR)$(PREFIX)/share/termux-services
-	install svlogger $(DESTDIR)$(PREFIX)/share/termux-services
+	$(INSTALL) -d $(BINDIR) $(PROFILEDIR) $(FISHDIR) $(SHAREDIR)
+	$(INSTALL) -m 0755 $(SCRIPTS) $(BINDIR)/
+	$(INSTALL) -m 0644 start-services.sh $(PROFILEDIR)/
+	$(INSTALL) -m 0644 start-services.fish $(FISHDIR)/
+	$(INSTALL) -m 0755 svlogger $(SHAREDIR)/
 
 uninstall:
-	rm -f $(DESTDIR)$(PREFIX)/bin/sv-enable
-	rm -f $(DESTDIR)$(PREFIX)/bin/sv-disable
-	rm -f $(DESTDIR)$(PREFIX)/bin/service-daemon
-	rm -f $(DESTDIR)$(PREFIX)/etc/profile.d/start-services.sh
-	rm -f $(DESTDIR)$(PREFIX)/etc/fish/conf.d/start-services.fish
-	rm -rf $(DESTDIR)$(PREFIX)/share/termux-services
+	rm -f $(BINDIR)/sv-enable
+	rm -f $(BINDIR)/sv-disable
+	rm -f $(BINDIR)/service-daemon
+	rm -f $(PROFILEDIR)/start-services.sh
+	rm -f $(FISHDIR)/start-services.fish
+	rm -rf $(SHAREDIR)
 
-.PHONY: install uninstall
+check:
+	sh -n sv-enable sv-disable service-daemon start-services.sh svlogger
+	sh tests/smoke.sh
+
+.PHONY: termux-services install uninstall check

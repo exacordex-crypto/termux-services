@@ -1,20 +1,12 @@
 #!/bin/sh
 
-show_help(){
-
-    printf 'Usage:
-    sv-enable <service-name>
-
-    Enabling a service will make it autostart
-'
+show_help() {
+    printf 'Usage:\n    sv-enable <service-name>\n\n    Enabling a service will make it autostart\n'
 }
-if [ -z "$1" ];then
-    show_help
-    exit 1
-fi
-if [ -u "$SVDIR" ];then
-    >&2 echo "Error: SVDIR not set"
-    exit 1
-fi
+
+[ "${1:-}" ] || { show_help; exit 1; }
+[ "${SVDIR:-}" ] || { printf 'Error: SVDIR not set\n' >&2; exit 1; }
+[ -d "$SVDIR/$1" ] || { printf 'Error: service not found: %s\n' "$1" >&2; exit 1; }
+
 rm -f "$SVDIR/$1/down"
-sv up $1
+exec sv up "$1"

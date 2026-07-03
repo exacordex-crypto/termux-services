@@ -1,47 +1,66 @@
 #!/data/data/com.termux/files/usr/bin/sh
 
-set -e
-start(){
-    mkdir -p $PIDDIR
-    start-stop-daemon -S -b -m -p $PIDFILE -x $DAEMON -d $PREFIX -- $DAEMON_OPTS
+set -eu
+
+: "${PREFIX:?PREFIX is not set}"
+: "${SVDIR:?SVDIR is not set}"
+
+NAME=service-daemon
+PIDDIR=${PREFIX}/var/run
+PIDFILE=${PIDDIR}/${NAME}.pid
+DAEMON=${PREFIX}/bin/runsvdir
+DAEMON_OPTS=${SVDIR}
+
+start() {
+    mkdir -p "$PIDDIR" "$SVDIR"
+    if [ -s "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then
+        return 0
+    fi
+    rm -f "$PIDFILE"
+    start-stop-daemon -S -b -m -p "$PIDFILE" -x "$DAEMON" -d "$PREFIX" -- "$DAEMON_OPTS"
 }
-stop(){
-    start-stop-daemon -K -s 1 -o -p $PIDFILE
-    tail -f --pid=`cat $PIDFILE` /dev/null
-    for f in $SVDIR/*/supervise $SVDIR/*/log/supervise;do
-        kill -9 `cat $f/pid` 2>/dev/null ||:
-        rm -rf $f
+
+stop_supervise_tree() {
+    for f in "$SVDIR"/*/supervise "$SVDIR"/*/log/supervise; do
+        [ -d "$f" ] || continue
+        if [ -s "$f/pid" ]; then
+            kill -9 "$(cat "$f/pid")" 2>/dev/null || :
+        fi
+        rm -rf "$f"
     done
 }
-# Must be a valid filename
-NAME=service-daemon
-PIDDIR=$PREFIX/var/run
-PIDFILE=$PIDDIR/$NAME.pid
-#This is the command to be run, give the full pathname
-DAEMON=$PREFIX/bin/runsvdir
-DAEMON_OPTS="$SVDIR"
 
-case "$1" in
+stop() {
+    if [ -s "$PIDFILE" ]; then
+        start-stop-daemon -K -s 1 -o -p "$PIDFILE" || :
+        pid=$(cat "$PIDFILE" 2>/dev/null || printf '')
+        if [ -n "$pid" ]; then
+            tail -f --pid="$pid" /dev/null 2>/dev/null || :
+        fi
+        rm -f "$PIDFILE"
+    fi
+    stop_supervise_tree
+}
+
+case "${1:-}" in
     start)
-        echo -n "Starting daemon: "$NAME
+        printf 'Starting daemon: %s' "$NAME"
         start
-        echo "."
+        printf '.\n'
         ;;
     stop)
-        echo -n "Stopping daemon: "$NAME
+        printf 'Stopping daemon: %s' "$NAME"
         stop
-        echo "."
+        printf '.\n'
         ;;
     restart)
-        echo -n "Restarting daemon: "$NAME
+        printf 'Restarting daemon: %s' "$NAME"
         stop
         start
-        echo "."
+        printf '.\n'
         ;;
-
     *)
-        echo "Usage: "$1" {start|stop|restart}"
+        printf 'Usage: %s {start|stop|restart}\n' "$0" >&2
         exit 1
+        ;;
 esac
-
-exit 0
